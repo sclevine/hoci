@@ -96,7 +96,7 @@ func (p DPKG) Metadata(pkgs interface{}) error {
 		if err != nil {
 			return err
 		}
-		if len(left) > 0 {
+		if left > 0 {
 			return xerrors.New("invalid struct tags")
 		}
 		sliceV.Set(reflect.Append(sliceV, v.Elem()))
@@ -132,17 +132,18 @@ func findStructFields(t reflect.Type) ([]string, error) {
 	return out, nil
 }
 
-func setStructFields(v reflect.Value, vals []string) (left []string, err error) {
-	for i := 0; i < v.NumField() && i < len(vals); i++ {
+func setStructFields(v reflect.Value, vals []string) (left int, err error) {
+	val := 0
+	for i := 0; i < v.NumField(); i++ {
 		fieldV := v.Field(i)
 		fieldT := v.Type().Field(i)
 
 		if fieldV.Kind() == reflect.Struct {
-			left, err := setStructFields(fieldV, vals[i:])
+			left, err := setStructFields(fieldV, vals[val:])
 			if err != nil {
-				return nil, err
+				return 0, err
 			}
-			vals = left
+			val = len(vals)-left
 			continue
 		}
 		tag := fieldT.Tag.Get("dpkg")
@@ -150,9 +151,10 @@ func setStructFields(v reflect.Value, vals []string) (left []string, err error) 
 			continue
 		}
 		if fieldV.Kind() != reflect.String {
-			return nil, xerrors.Errorf("not string: %s", fieldT)
+			return 0, xerrors.Errorf("not string: %s", fieldT)
 		}
-		fieldV.Set(reflect.ValueOf(vals[i]))
+		fieldV.Set(reflect.ValueOf(vals[val]))
+		val++
 	}
-	return nil, nil
+	return len(vals)-val, nil
 }
