@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"hoci"
 	"log"
 	"os"
@@ -32,7 +33,7 @@ func main() {
 	dpkg := hoci.DPKG{
 		Log: logger,
 		Query: func(query string) *exec.Cmd {
-			return exec.Command("docker", "run", "--rm", image, "dpkg-query", "-W", "-f="+query)
+			return exec.Command("docker", "run", "--rm", "--user", "root", image, "dpkg-query", "-W", "-f="+query)
 		},
 	}
 	var pkgs []Package
@@ -47,12 +48,9 @@ func main() {
 	}
 	cmd := exec.Command("docker", "build", "-t", image, "--label", "sh.scl.hoci.packages="+string(out), "-")
 	cmd.Stdin = bytes.NewBufferString("FROM " + image + "\n")
-	if err := cmd.Run(); err != nil {
-		logger.Fatal(err)
-	}
-
 	if out, err := cmd.CombinedOutput(); err != nil {
 		logger.Print(string(out))
 		logger.Fatal(err)
 	}
+	fmt.Println(string(out))
 }
